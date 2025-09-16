@@ -1,5 +1,96 @@
-{% extends 'base.html' %} {% block title %}HOME{% endblock %} {% block content %}
-<div>
-    <h1>HOME PAGE TEMPLATE</h1>
-</div>
+{% extends "base.html" %} {% block title %}Bookmarks API · Demo{% endblock %} {% block content %}
+<section class="max-w-5xl mx-auto px-4 py-10">
+    <!-- Hero -->
+    <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold tracking-tight">Bookmarks API · Demo</h1>
+        <p class="mt-2 text-base-content/70">A minimal Django/DRF project showcasing clean API design, docs, and a tiny demo dashboard.</p>
+    </header>
+
+    <!-- Quick Navigation -->
+    <div class="mb-6 flex items-center justify-between gap-4">
+        <h2 class="text-xl font-semibold">Quick Navigation</h2>
+        <span class="badge badge-outline">v1</span>
+    </div>
+
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- Admin -->
+        <a href="/admin/" class="card bg-base-200/60 border border-base-300 hover:border-primary transition-colors">
+            <div class="card-body">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl" aria-hidden="true">🛠️</span>
+                    <h3 class="card-title text-lg">Admin</h3>
+                </div>
+                <p class="text-sm text-base-content/70">Manage bookmarks and tags.</p>
+            </div>
+        </a>
+
+        <!-- Health -->
+        <a href="{% url 'bookmarks:bookmarks-health' %}" class="card bg-base-200/60 border border-base-300 hover:border-primary transition-colors">
+            <div class="card-body">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl" aria-hidden="true">💚</span>
+                    <h3 class="card-title text-lg">Health Check</h3>
+                </div>
+                <p class="text-sm text-base-content/70">Ping endpoint for uptime checks.</p>
+            </div>
+        </a>
+
+        <!-- Swagger Docs -->
+        <a href="{% url 'bookmarks:bookmarks-docs' %}" class="card bg-base-200/60 border border-base-300 hover:border-primary transition-colors">
+            <div class="card-body">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl" aria-hidden="true">📖</span>
+                    <h3 class="card-title text-lg">API Docs</h3>
+                </div>
+                <p class="text-sm text-base-content/70">OpenAPI/Swagger UI.</p>
+            </div>
+        </a>
+
+        <!-- Demo UI (this page) -->
+        <a href="{% url 'bookmarks:bookmarks-demo' %}" class="card bg-base-200/60 border border-base-300 hover:border-primary transition-colors">
+            <div class="card-body">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl" aria-hidden="true">🧪</span>
+                    <h3 class="card-title text-lg">Demo UI</h3>
+                </div>
+                <p class="text-sm text-base-content/70">Simple dashboard to hit endpoints.</p>
+            </div>
+        </a>
+
+        <!-- JSON View (List) -->
+        <a href="{% url 'bookmarks:bookmarks-list' %}" class="card bg-base-200/60 border border-base-300 hover:border-primary transition-colors">
+            <div class="card-body">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl" aria-hidden="true">🧩</span>
+                    <h3 class="card-title text-lg">Bookmarks (JSON)</h3>
+                </div>
+                <p class="text-sm text-base-content/70">Direct API response for the list endpoint.</p>
+            </div>
+        </a>
+    </div>
+
+    <!-- How to Use -->
+    <div class="mt-10">
+        <h2 class="text-xl font-semibold mb-3">How to Use</h2>
+        <div class="rounded-xl bg-base-200/60 border border-base-300 p-4">
+            <p class="text-sm text-base-content/70 mb-3">Fetch approved bookmarks (supports <code>?tag</code>, <code>?search</code>, <code>?ordering</code>):</p>
+            <pre class="mockup-code overflow-x-auto text-sm p-2"><code>GET localhost:8000/bookmarks/v1/bookmarks?tag=python&amp;search=django&amp;ordering=-created_at</code></pre>
+
+            <p class="text-sm text-base-content/70 mt-4 mb-2">Get a single bookmark by ID:</p>
+            <pre class="mockup-code overflow-x-auto text-sm p-2"><code>GET localhost:8000/bookmarks/v1/bookmarks/1/</code></pre>
+
+            <p class="text-sm text-base-content/70 mt-4 mb-2">Submit a new bookmark (anonymous, moderated):</p>
+            <pre class="mockup-code overflow-x-auto text-sm p-2"><code>POST localhost:8000/bookmarks/v1/bookmarks/submit/
+Content-Type: application/json
+
+{
+  "title": "Great Django Guide",
+  "url": "https://docs.djangoproject.com/",
+  "description": "Official docs",
+  "tags": ["django","docs"]
+}</code></pre>
+            <p class="text-xs text-base-content/60 mt-2">Unknown tags appear in <code>pending_tags</code>. Honeypot field <code>website</code> will be rejected if set.</p>
+        </div>
+    </div>
+</section>
 {% endblock %}
