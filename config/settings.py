@@ -42,6 +42,19 @@ INSTALLED_APPS = [
     'bookmarks',
 ]
 
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_THROTTLE_CLASSES': [], # Throttle classes are set per view
+    'DEFAULT_THROTTLE_RATES': {
+        'quotes_global': '200/min',
+        'quotes_ip': '30/min',
+    },
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
