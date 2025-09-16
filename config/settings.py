@@ -50,8 +50,9 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DEFAULT_THROTTLE_CLASSES': [], # Throttle classes are set per view
     'DEFAULT_THROTTLE_RATES': {
-        'quotes_global': '200/min',
-        'quotes_ip': '30/min',
+        'bookmarks_reads': '60/min',
+        'bookmarks_submit_burst': '5/min',
+        'bookmarks_submit_day': '50/day',
     },
 }
 
