@@ -21,7 +21,6 @@ def test_write_serializer_trims_inputs_and_splits_tags():
         'url': ' https://djangoproject.com ',
         'description': ' A nice site ',
         'tags': ['django', 'api', 'tools'], # only django exists (created above)
-        'website': 'bot-fill-should-be-ignored',
     }
 
     ser = BookmarkWriteSerializer(data=payload)

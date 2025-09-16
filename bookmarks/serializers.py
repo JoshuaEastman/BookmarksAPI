@@ -16,7 +16,9 @@ def _canon_url(raw: str) -> str:
     if scheme == 'https' and netloc.endswith(':443'):
         netloc = netloc[:-4]
 
-    path = parts.path or '/'
+    path = parts.path
+    if path in ('', '/'):
+        path = '' # no trailing slash for domain root
 
     return urlunsplit((scheme, netloc, path, parts.query, ''))
 
