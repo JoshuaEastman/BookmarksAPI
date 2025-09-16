@@ -1,0 +1,369 @@
+openapi: 3.1.1
+info:
+  title: Bookmarks API
+  version: 0.1.0
+  summary: Public reads, anonymous moderated writes for curated bookmarks.
+  description: |
+    The Bookmarks API lets anyone browse approved links and submit new ones for moderation.
+    - Reads are public.
+    - Writes are anonymous and default to `is_approved=false` (moderated via admin).
+    - Rate limits apply on submission.
+    - A honeypot field is used to deter spam.
+
+    ## Conventions
+    - All times are UTC ISO-8601
+    - Pagination uses DRF-style page number pagination: `page` and `page_size` (max may be enforced server-side).
+    - Filtering is by tag slug ('?tag=python').
+    - Search spans `title` and `description` (`?search=...`).
+    - Ordering supports `created_at` and `-created_at` (default `-created_at`).
+servers:
+  - url: https://joshuaeastman.dev/bookmarks
+    description: Production
+  - url: http://localhost:8000/bookmarks
+    description: Local Dev
+
+tags:
+  - name: Health
+    description: Endpoint to check that API is online and available
+  - name: Bookmarks
+    description: Endpoints to list, retrieve and submit bookmarks.
+
+paths:
+  /v1/health:
+    get:
+      summary: Health check
+      description: Simple OK to check the pipeline
+      tags: [Health]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /v1/bookmarks/:
+    get:
+      summary: List all approved bookmarks.
+      description: Lists all approved bookmarks; Rate limited to 60/min
+      tags: [Bookmarks]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Tag'
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Ordering'
+      responses:
+        '200':
+          description: Paginated list of approved bookmarks
+          headers:
+            X-RateLimit-Limit: { $ref: '#/components/headers/X-RateLimit-Limit' }
+            X-RateLimit-Remaining: { $ref: '#/components/headers/X-RateLimit-Remaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/X-RateLimit-Reset' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedBookmarkList' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/bookmarks/{id}/:
+    get:
+      summary: Get specified bookmark.
+      description: Get an approved bookmark by id; 404 if not approved or not found; Rate limited to 60/min
+      tags: [Bookmarks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Bookmark ID
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Approved bookmark
+          headers:
+            X-RateLimit-Limit: { $ref: '#/components/headers/X-RateLimit-Limit' }
+            X-RateLimit-Remaining: { $ref: '#/components/headers/X-RateLimit-Remaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/X-RateLimit-Reset' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookmarkRead' }
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/bookmarks/submit/:
+    post:
+      summary: Post a bookmark
+      description: Post a bookmark for admin approval; Rate limited to 5/min and 50/day
+      tags: [Bookmarks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookmarkWrite' }
+      responses:
+        '201':
+          description: Submission accepted (pending approval)
+          headers:
+            X-RateLimit-Limit: { $ref: '#/components/headers/X-RateLimit-Limit' }
+            X-RateLimit-Remaining: { $ref: '#/components/headers/X-RateLimit-Remaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/X-RateLimit-Reset' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Submission' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Page number (1-based).
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      description: Page size (max 100).
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    Tag:
+      name: tag
+      in: query
+      description: Filter by tag slug (e.g., python); unordered set; reponse order is unspecified.
+      required: false
+      schema:
+        type: string
+        maxLength: 50
+    Search:
+      name: search
+      in: query
+      description: Case-insensitive search across title and description.
+      required: false
+      schema:
+        type: string
+        maxLength: 200
+    Ordering:
+      name: ordering
+      in: query
+      description: Sort by created_at or -created_at (default -created_at).
+      required: false
+      schema:
+        type: string
+        enum: ["created_at", "-created_at"]
+        default: "-created_at"
+
+  schemas:
+    BookmarkRead:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          maxLength: 120
+        url:
+          type: string
+          format: uri
+          pattern: '^https?://'
+        description:
+          type: string
+          maxLength: 500
+        tags:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          uniqueItems: true
+        created_at:
+          type: string
+          format: date-time
+      required: [id, title, url, description, tags, created_at]
+      additionalProperties: false
+
+    BookmarkWrite:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 120
+        url:
+          type: string
+          format: uri
+          pattern: '^https?://'
+        description:
+          type: string
+          maxLength: 500
+        tags:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          uniqueItems: true
+        website:
+          type: string
+          description: Honeypot; must be left empty; if filled, will respond with 400.
+          default: ''
+      required: [title, url, description, tags]
+      additionalProperties: false
+
+    PaginatedBookmarkList:
+      type: object
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        next:
+          type: [ string, "null" ]
+          format: uri
+        previous:
+          type: [ string, "null" ]
+          format: uri
+        results:
+          type: array
+          items: { $ref: '#/components/schemas/BookmarkRead'}
+      required: [count, next, previous, results]
+      additionalProperties: false
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+          maxLength: 120
+        url:
+          type: string
+          format: uri
+          pattern: '^https?://'
+        description:
+          type: string
+          maxLength: 500
+        tags:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+          uniqueItems: true
+        is_approved:
+          type: boolean
+          const: false
+        created_at:
+          type: string
+          format: date-time
+        pending_tags:
+          type: array
+          description: Unknown tags that were accepted for moderation.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 50
+      required: [id, title, url, description, tags, is_approved, created_at]
+      additionalProperties: false
+
+    # Shared error schema
+    Error:
+      type: object
+      properties:
+        detail:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+      required: [detail]
+      additionalProperties: false
+
+  responses:
+    # Error Codes
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            no_match:
+              summary: No bookmark found for this given tag
+              value:
+                detail: "No bookmark found for tag 'x'."
+
+    TooManyRequests:
+      description: Too many requests
+      headers:
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+        X-RateLimit-Limit: { $ref: '#/components/headers/X-RateLimit-Limit' }
+        X-RateLimit-Remaining: { $ref: '#/components/headers/X-RateLimit-Remaining' }
+        X-RateLimit-Reset: { $ref: '#/components/headers/X-RateLimit-Reset' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            throttled:
+              summary: Example throttle responses
+              value:
+                detail: 'Request was throttled. Expected available in 30 seconds.'
+
+    BadRequest:
+      description: Invalid parameters or payload
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          examples:
+            duplicate:
+              summary: Duplicate url
+              value:
+                detail: 'URL already submitted'
+
+  headers:
+    X-RateLimit-Limit:
+      description: Request limit for the current window.
+      schema: { type: integer }
+    X-RateLimit-Remaining:
+      description: Remaining requests for the current window.
+      schema: { type: integer }
+    X-RateLimit-Reset:
+      description: UTC epoch seconds when the current window resets.
+      schema: { type: integer }
+    Retry-After:
+      description: Seconds until a new request can be made.
+      schema:
+        type: integer
+        minimum: 1
+
+security: []
+
+x-moderation:
+  description: Submissions are stored with `is_approved=false` and only listed after admin approval.
+x-throttling:
+  submit:
+    burst_per_minute: 5
+    daily_cap: 50
+  reads:
+    burst_per_minute: 60
